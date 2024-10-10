@@ -140,10 +140,10 @@ if ($diskType -ieq "GPT")
   }
 }
 # Checking the BackupFolder parameter
-if ($True)
+if ($PSBoundParameters.ContainsKey('BackupFolder'))
 {
   LogMessage("")
-  LogMessage("Backup Directory: [c:\winre_backup]")
+  LogMessage("Backup Directory: [" + $BackupFolder + "]")
   
   $Needbackup = $true
   
@@ -154,9 +154,9 @@ if ($True)
   }
   else
   {
-    if (Test-path "c:\winre_backup")
+    if (Test-path $BackupFolder)
     {
-      $items = Get-ChildItem -Path "c:\winre_backup"
+      $items = Get-ChildItem -Path $BackupFolder
       if ($items)
       {
         LogMessage("Error: Existing backup directory is not empty")
@@ -168,14 +168,14 @@ if ($True)
       LogMessage("Creating backup directory...")
       try 
       {
-        $item = New-Item -Path "c:\winre_backup" -ItemType Directory -ErrorAction Stop
+        $item = New-Item -Path $BackupFolder -ItemType Directory -ErrorAction Stop
         if ($item)
         {
           LogMessage("Backup directory created")
         }
         else
         {
-          LogMessage("Error: Failed to create backup directory [ c:\winre_backup ]")
+          LogMessage("Error: Failed to create backup directory [" + $BackupFolder + "]")
           exit 1
         }
       } catch 
@@ -333,14 +333,35 @@ else
 if ($Needbackup)
 {
   LogMessage("")
-  LogMessage("The contents of the old WinRE partition will be backed up to [ c:\winre_backup ]")
+  LogMessage("The contents of the old WinRE partition will be backed up to [" + $BackupFolder + "]")
 }
 LogMessage("")
 LogMessage("Please reboot the device before running this script to ensure any pending partition actions are finalized")
 LogMessage("")
-
-LogMessage("User chose to skip confirmation")
-LogMessage("Proceeding with changes...")
+if ($SkipConfirmation)
+{
+  LogMessage("User chose to skip confirmation")
+  LogMessage("Proceeding with changes...")
+}
+else
+{
+  $userInput = Read-Host -Prompt "Would you like to proceed? Y for Yes and N for No"
+    
+  if ($userInput -ieq "Y")
+  {
+    LogMessage("Proceeding with changes...")
+  }
+  elseif ($userInput -ieq "N")
+  {
+    LogMessage("Canceling based on user request, no changes were made to the system")
+    exit 0
+  }
+  else
+  {
+    LogMessage("Error: Unexpected user input: [" + $userInput + "]") 
+    exit 0
+  }
+}
 LogMessage("")
 LogMessage("Note: To prevent unexpected results, please do not interrupt the execution or restart your system")
 # ------------------------------------
@@ -436,7 +457,7 @@ else
   if ($Needbackup)
   {
     $sourcePath = $WinREPartition.AccessPaths[0] 
-    LogMessage("Copying content on WinRE partition from [" + $sourcePath + "] to [ c:\winre_backup ]...")
+    LogMessage("Copying content on WinRE partition from [" + $sourcePath + "] to [" + $BackupFolder + "]...")
     
     # Copy-Item may have access issue with certain system folders, enumerate the children items and exlcude them
     $items = Get-ChildItem -LiteralPath $sourcePath -Force
@@ -447,7 +468,7 @@ else
         continue
       }
       $sourceItemPath = Join-Path -Path $sourcePath -ChildPath $item.Name
-      $destItemPath = Join-Path -Path "c:\winre_backup" -ChildPath $item.Name
+      $destItemPath = Join-Path -Path $BackupFolder -ChildPath $item.Name
       try 
       {
         LogMessage("Copying [" + $sourceItemPath + "] to [" + $destItemPath + "]...")
@@ -581,7 +602,7 @@ LogMessage("End time: $([DateTime]::Now)")
 if ($NeedBackup)
 {
   LogMessage("")
-  LogMessage("The contents of the old WinRE partition has been backed up to [ c:\winre_backup ]")
+  LogMessage("The contents of the old WinRE partition has been backed up to [" + $BackupFolder + "]")
 }
 LogMessage("")
 LogMessage("Successfully completed the operation")
